@@ -291,9 +291,21 @@ def chat(msg: ChatMessage):
             return ChatResponse(reply=reply, user_id=user_id)
 
     # Проверяем, ждём ли имя пользователя
-    if len(sessions[session_id]) == 2:
+    # len == 2 значит только system + assistant приветствие
+    if len(sessions[session_id]) == 2 and not user["name"]:
         name = user_text
         sessions[session_id].append({"role": "user", "text": name})
+
+        # Сохраняем имя в БД
+        update_user_name(session_id, name)
+
+        reply = f"Рада знакомству, {name}! 😊\n\nВыбери тему для работы:"
+        sessions[session_id].append({"role": "assistant", "text": reply})
+
+        db.execute("INSERT INTO logs (time, session_id, user_msg, bot_msg) VALUES (?,?,?,?)",
+                   (datetime.now().isoformat(), session_id, f"Имя: {name}", reply))
+        db.commit()
+        return ChatResponse(reply=reply, user_id=user_id)
 
         # Сохраняем имя в БД
         update_user_name(session_id, name)
