@@ -298,6 +298,7 @@
             if (e.key === 'Enter') sendMessage();
         });
 
+        // Приветствие при загрузке
         window.onload = async () => {
             try {
                 const response = await fetch('/chat', {
