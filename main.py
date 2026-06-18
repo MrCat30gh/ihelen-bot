@@ -159,7 +159,7 @@ class YandexGPT:
         }, json={
             "modelUri": f"gpt://{YANDEX_FOLDER_ID}/yandexgpt-lite",
             "completionOptions": {"temperature": 0.6, "maxTokens": 700},
-            "messages": messages[-20:]
+            "messages": [m for m in messages[-20:] if m.get("text", "").strip()]
         })
 
         logger.info(f"Yandex API response status: {r.status_code}")
@@ -242,6 +242,8 @@ app.add_middleware(
 def chat(msg: ChatMessage):
     session_id = msg.session_id
     user_text = msg.message.strip()
+    if not user_text:
+        return ChatResponse(reply="Пожалуйста, введите текст сообщения.")
 
     # Получаем или создаём пользователя
     user = get_or_create_user(session_id)
