@@ -149,6 +149,10 @@ class YandexGPT:
     URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
 
     def ask(self, messages: List[Dict[str, str]]) -> str:
+        logger.info(f"Запрос к Yandex API: {self.URL}")
+        logger.info(f"API Key starts with: {YANDEX_API_KEY[:10]}...")
+        logger.info(f"Folder ID: {YANDEX_FOLDER_ID}")
+
         r = requests.post(self.URL, headers={
             "Authorization": f"Bearer {YANDEX_API_KEY}",
             "Content-Type": "application/json"
@@ -157,6 +161,12 @@ class YandexGPT:
             "completionOptions": {"temperature": 0.6, "maxTokens": 700},
             "messages": messages[-20:]
         })
+
+        logger.info(f"Yandex API response status: {r.status_code}")
+
+        if r.status_code != 200:
+            logger.error(f"Yandex API error: {r.text}")
+
         r.raise_for_status()
         return r.json()["result"]["alternatives"][0]["message"]["text"]
 
@@ -322,10 +332,22 @@ def chat(msg: ChatMessage):
     sessions[session_id].append({"role": "user", "text": user_text})
 
     try:
+        logger.info(f"Отправляю запрос в Yandex GPT. Сессия: {session_id}")
+        logger.info(f"История сообщений: {sessions[session_id][-1]}")  # Последнее сообщение
+
         bot_reply = ai.ask(sessions[session_id])
+
+        logger.info(f"Получен ответ от GPT: {bot_reply[:50]}...")  # Первые 50 символов
+
+    except requests.exceptions.HTTPError as http_err:
+        logger.error(f"HTTP ошибка от Yandex: {http_err}")
+        logger.error(f"Status code: {http_err.response.status_code}")
+        logger.error(f"Response text: {http_err.response.text}")
+        raise HTTPException(status_code=500, detail=f"Ошибка API: {http_err}")
+
     except Exception as e:
-        logger.error(f"AI error: {e}")
-        raise HTTPException(status_code=500, detail="Ошибка нейросети")
+        logger.error(f"Неизвестная ошибка: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка: {str(e)}")
 
     sessions[session_id].append({"role": "assistant", "text": bot_reply})
 
