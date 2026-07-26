@@ -155,6 +155,123 @@
             text-align: center;
             padding: 10px;
         }
+    /* Модальное окно */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s;
+}
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    cursor: pointer;
+    color: #999;
+    transition: color 0.2s;
+}
+.close-btn:hover {
+    color: #333;
+}
+.modal-content h2 {
+    margin-top: 0;
+    color: #667eea;
+    text-align: center;
+}
+.modal-description {
+    text-align: center;
+    color: #666;
+    margin-bottom: 20px;
+}
+.slider-container {
+    margin: 20px 0;
+}
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 10px;
+}
+input[type="range"] {
+    width: 100%;
+    height: 8px;
+    border-radius: 5px;
+    background: linear-gradient(to right, #667eea, #764ba2);
+    outline: none;
+    -webkit-appearance: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid #667eea;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+input[type="range"]::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid #667eea;
+    cursor: pointer;
+}
+.temp-value {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 16px;
+    color: #333;
+}
+.temp-value strong {
+    color: #667eea;
+    font-size: 20px;
+}
+.temp-description {
+    text-align: center;
+    margin-top: 10px;
+    font-style: italic;
+    color: #764ba2;
+    font-size: 14px;
+}
+.apply-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.apply-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
     </style>
 </head>
 <body>
@@ -172,6 +289,7 @@
                 <button class="menu-btn" onclick="sendMenuAction('goals')">🌠 Цели</button>
                 <button class="menu-btn" onclick="sendMenuAction('fear')">🎭 Страх</button>
                 <button class="menu-btn" onclick="sendMenuAction('summary')">📊 Саммари</button>
+                <button class="menu-btn" onclick="openTemperatureModal()">🌡️ Стиль</button>
                 <button class="menu-btn stop" onclick="sendMenuAction('stop')">🛑 Стоп</button>
             </div>
         </div>
@@ -324,6 +442,105 @@
             console.error('Error:', err);
         }
     };
+// === Управление модальным окном температуры ===
+function openTemperatureModal() {
+    const modal = document.getElementById('tempModal');
+    const slider = document.getElementById('tempSlider');
+
+    // Загружаем текущую температуру из localStorage или используем 0.6
+    const currentTemp = parseFloat(localStorage.getItem('ihelen_temperature') || '0.6');
+    slider.value = currentTemp;
+    updateTempLabel(currentTemp);
+
+    modal.classList.remove('hidden');
+}
+
+function closeTemperatureModal() {
+    document.getElementById('tempModal').classList.add('hidden');
+}
+
+function updateTempLabel(value) {
+    const numValue = parseFloat(value);
+    document.getElementById('tempValue').textContent = numValue.toFixed(1);
+
+    let description = '';
+    if (numValue <= 0.2) {
+        description = '📋 Очень сухой и точный стиль — как энциклопедия';
+    } else if (numValue <= 0.4) {
+        description = '📝 Сдержанный и деловой стиль';
+    } else if (numValue <= 0.6) {
+        description = '️ Сбалансированный стиль — золотая середина';
+    } else if (numValue <= 0.8) {
+        description = '🌸 Тёплый и образный стиль';
+    } else {
+        description = '🎨 Очень поэтичный и креативный стиль';
+    }
+    document.getElementById('tempDescription').textContent = description;
+}
+
+function applyTemperature() {
+    const slider = document.getElementById('tempSlider');
+    const temp = parseFloat(slider.value).toFixed(1);
+
+    // Сохраняем в localStorage
+    localStorage.setItem('ihelen_temperature', temp);
+
+    // Отправляем на сервер
+    const message = '[TEMP:' + temp + ']';
+    addMessage('🌡️ Установить температуру: ' + temp, 'user');
+
+    fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, message: message })
+    })
+    .then(response => response.json())
+    .then(data => {
+        addMessage(data.reply, 'bot');
+        closeTemperatureModal();
+    })
+    .catch(err => {
+        addMessage(' Ошибка: ' + err.message, 'bot');
+        closeTemperatureModal();
+    });
+}
+
+// Закрытие модального окна по клику вне его
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('tempModal');
+    if (event.target === modal) {
+        closeTemperatureModal();
+    }
+});
+
 </script>
+<!-- Модальное окно температуры -->
+<div id="tempModal" class="modal hidden">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeTemperatureModal()">&times;</span>
+        <h2>️ Настройка стиля общения</h2>
+        <p class="modal-description">
+            Выберите, как iHelen будет с вами общаться:
+        </p>
+
+        <div class="slider-container">
+            <div class="slider-labels">
+                <span> Сухой и точный</span>
+                <span>🎨 Поэтичный и креативный</span>
+            </div>
+            <input type="range" id="tempSlider" min="0" max="1" step="0.1" value="0.6"
+                   oninput="updateTempLabel(this.value)">
+            <div class="temp-value">
+                Текущее значение: <strong id="tempValue">0.6</strong>
+            </div>
+            <div class="temp-description" id="tempDescription">
+                Сбалансированный стиль
+            </div>
+        </div>
+
+        <button class="apply-btn" onclick="applyTemperature()">Применить</button>
+    </div>
+</div>
+
 </body>
 </html>
